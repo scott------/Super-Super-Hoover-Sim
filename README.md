@@ -4,7 +4,7 @@ Super Super Hoover Sim is a program that navigates a imaginary robotic hoover (m
 To run the simulation download input.txt and supersuperhooversim.html file to your computer.  
 Place them both in the same directory (for simplicity).
 Open the supersuperhooversim.html in any modern browser.
-Click on the choose file and select the aforementioned input.txt file.
+Click on the 'Choose File' button and select the aforementioned input.txt file.
 The resultant program output is sent to the console.log but will be displayed in the browser for your convenience.
 
 The input file format is:
