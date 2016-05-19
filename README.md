@@ -15,6 +15,6 @@ Example hoover starting position: 30 99
 Subsequent lines contain the zero or more positions of patches of dirt, given in the same format.
 The last line contains the driving instructions that the hoover will follow.  
 The driving instructions move the hoover one space per instruction element.
-These example driving instructions would attempt to move the rover up twice and left once: NNE
-If the rover is already at the left most wall of the grid it will spin its wheels and not be able to move further east.
+These example driving instructions would attempt to move the rover up twice and right once: NNE
+If the rover were already at the right most wall of the grid it will spin its wheels and not be able to move further east.
 The hoover loves to clean dirt patches.
