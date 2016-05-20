@@ -1,0 +1,484 @@
+<html>
+
+<head>
+    <script type="text/javascript">
+        /** Program written by: Scott------
+         * ******************************************************************
+         * Last Updated: 5/19/2016
+         * Title: Hoover Simulation in raw JavaScript
+         * calling order of essential functions:
+         *                                    hooverInit
+         *                                    loadInputFile
+         *                                    readInputFile
+         *                                    runHooverSimulation
+         *                                    checkInputSanity
+         *                                    moveHoover
+         *                                    countDirtPatchesCleaned
+         *                                    publishResults
+         ********************************************************************
+         */
+
+
+        window.onload = function hooverInit() {
+            /**
+             * hooverInit sets a listener up on the file input Dom object
+             * Once the user selects a file hooverInit calls loadInputFile
+             * loadInputFile reads the file line by line into an array and
+             * passes that array to runHooverSimulation which is where
+             * all of the main program logic occurs
+             */
+            
+            //*******************************************************************
+            //sets up a test which fires everytime you start
+            //this will be removed in the final version
+            var arrTestInputFileLines = [];
+            arrTestInputFileLines.push("5 5");
+            arrTestInputFileLines.push("1 2");
+            arrTestInputFileLines.push("1 0");
+            arrTestInputFileLines.push("2 2");
+            arrTestInputFileLines.push("2 3");
+            arrTestInputFileLines.push("NNESEESWNWW");
+            runHooverSimulation(arrTestInputFileLines);
+            //*******************************************************************
+            
+            var inputFile = document.getElementById('inputFile');
+
+            //set up a listener for an event that is thrown when the user chooses an input file
+            inputFile.addEventListener('change', function loadInputFile(e) {
+                /**
+                 * loadInputFile is fired when the user chooses an input file
+                 * once the file is loaded readInputFile is called and the lines of the file are read into an array
+                 * we then call runHooverSimulation and pass it the array of input file lines
+                 * @param {Object} e the event which contains the input file as a property
+                 */
+                var file = inputFile.files[0];
+                var reader = new FileReader();
+                reader.onload = function readInputFile(e) {
+                    /**
+                     * readInputFile is called by loadInputFile and is passed the file in an event property
+                     * the lines of the file are read into an array
+                     * we then call runHooverSimulation and pass it the array of input file lines
+                     * @param {Object} e the event which contains the loaded input file as a property
+                     */
+
+                    //declare and array to hold the lines read from the input file
+                    var arrInputFileLines = [];
+
+                    //Load the input file's lines into arrInputFileLines
+                    var lines = this.result.split('\n');
+                    for (var line = 0; line < lines.length; line++) {
+                        arrInputFileLines.push(lines[line]);
+                    }
+
+                    //run the hoover simulation
+                    runHooverSimulation(arrInputFileLines);
+                }
+                reader.readAsText(file);
+
+                //reset the inputFile so you can run as many sims as you want with the same filename
+                document.getElementById("inputFile").value = "";
+            });
+        }
+
+
+
+        function runHooverSimulation(arrInputFileLines) {
+            /**
+             * runHooverSimulation takes the input file as an array
+             * runHooverSimulation has two outputs
+             * first line of output displays the X and Y coordinates marking
+             * the position of the hoover after processing all commands
+             * The second line of output displays the number of patches of dirt the robot cleaned up
+             * the output is written to the console.log
+             * (the outputs are also displayed on the html page for the convenience of the reviewer)]
+             * @param {Object} arrInputFileLines [array of lines from the input file]
+             */
+
+            //we can handle more than single digit grid sizes!
+            //declare variables to hold grid size
+            var intGridSizeX = 0;
+            var intGridSizeY = 0;
+
+            //set the initial hoover position [x,y] to 0,0
+            var hooverPosition = [
+                [0, 0]
+            ];
+
+            //this holds the array of path and position objects returned from each call to moveHoover
+            var hooverPathAndPosition = [];
+
+            //storage for the coordinate locations of patches of dirt
+            var arrDirtPatchCoords = [];
+
+            //driving instructions move the hoover one hop per cardinal direction (N,E,S,W)
+            var drivingInstructions = "";
+
+            //we will use an array to store the path of the hoover
+            //we will compare this array against the coordinate locations
+            //of the patches of dirt to determine the intersects
+            var arrHooverPath = [];
+
+            //set the grid size   
+            intGridSizeX = parseInt(arrInputFileLines[0].substring(0, arrInputFileLines[0].indexOf(" ")));
+            intGridSizeY = parseInt(arrInputFileLines[0].substring(arrInputFileLines[0].indexOf(" ") + 1));
+
+            //set the intial hoover position
+            //extract the numbers on the second line of the input file.
+            //this program takes any two ints seperated by 
+            //a space as is described in the specification document
+            //you may want to use more than just single digits for very large grids :-)
+            hooverPosition[0][0] = parseInt(arrInputFileLines[1].substring(0, arrInputFileLines[1].indexOf(" ")));
+            hooverPosition[0][1] = parseInt(arrInputFileLines[1].substring(arrInputFileLines[1].indexOf(" ") + 1));
+
+            //add current position of hoover to hoover path array
+            arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
+            
+            //get dirt patch locations
+            //dirt patch locations are in the file between the initial hoover location and the driving instructions
+            //parse each of those lines and add to the array of dirt patch locations
+            var xDirtPatchCoord = 0;
+            var yDirtPatchCoord = 0;
+            for (n = 2; n < arrInputFileLines.length - 1; n++) {
+                xDirtPatchCoord = parseInt(arrInputFileLines[n].substring(0, arrInputFileLines[n].indexOf(" ")));
+                yDirtPatchCoord = parseInt(arrInputFileLines[n].substring(arrInputFileLines[n].indexOf(" ") + 1));
+                arrDirtPatchCoords.push([xDirtPatchCoord + "," + yDirtPatchCoord]);
+            }
+
+            //set last line from input file as the driving instuctions
+            drivingInstructions = arrInputFileLines[(arrInputFileLines.length - 1)];
+
+            //remove any spaces from the driving instructions string
+            drivingInstructions.replace(" ", "");
+
+            //split the driving instructions into an array
+            //so we can parse them one at a time without using substring methods
+            //substring methods may become unweildy at scale
+            drivingInstructions = drivingInstructions.split("");
+
+            //check some basic aspects of the input
+            var inputSanity = checkInputSanity(intGridSizeX, intGridSizeY, hooverPosition);
+
+            //if the input is sane perform the simulation
+            if (inputSanity == true) {
+
+                //move the hoover through the array of driving instructions
+                for (x = 0; x < drivingInstructions.length; x++) {
+                    hooverPathAndPosition = moveHoover(drivingInstructions[x], intGridSizeX, intGridSizeY, arrHooverPath, hooverPosition);
+                    arrHooverPath = hooverPathAndPosition[0];
+                    hooverPosition = hooverPathAndPosition[1];
+                }
+                
+                
+                
+                //count the number of patches of dirt the robot cleaned up
+                var numDirtPatchesCleaned = countDirtPatchesCleaned(arrDirtPatchCoords, arrHooverPath);
+
+                //publish the results to the screen and the console.log
+                publishResults(hooverPosition, numDirtPatchesCleaned);
+                
+                drawSolution(intGridSizeX, intGridSizeY, hooverPosition, arrDirtPatchCoords, arrHooverPath);
+                
+            }
+        }
+
+
+
+        function moveHoover(direction, intGridSizeX, intGridSizeY, arrHooverPath, hooverPosition) {
+            /**
+             * mooveHoover "moves" the hoover around the grid
+             * before moving we check to see fi you are at the wall for that direction already
+             * N and S are limited by y and 0 respectivly
+             * E and W are limited by x and 0 respectivly
+             * @param   {string} direction      Cardinal Direction to attempt to move the hoover
+             * @param   {number} intGridSizeX   Size of grid in X dimension
+             * @param   {number} intGridSizeY   Size of grid in Y dimension
+             * @param   {Array}  arrHooverPath  2d array that holds coordinates of the hoover path
+             * @param   {Array}  hooverPosition 2d array that holds current hoover position coordinates
+             * @returns {Array}  Contains the arrHoverPath and the hooverPosition
+             */
+
+            //if you have a valid direction and you are not at the "wall"
+            //then move by changing the appropriate coordinate value of the hoover
+            if ((direction == 'N') && (hooverPosition[0][1] < intGridSizeY - 1)) {
+                //move the hoover north
+                hooverPosition[0][1] = hooverPosition[0][1] + 1;
+                //add the new hoover position to the hoover path array
+                arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
+                return [arrHooverPath, hooverPosition];
+            }
+            if ((direction == 'S') && (hooverPosition[0][1] > 0)) {
+                //move the hoover south
+                hooverPosition[0][1] = hooverPosition[0][1] - 1;
+                //add the new hoover position to the hoover path array
+                arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
+                return [arrHooverPath, hooverPosition];
+            }
+            if ((direction == 'E') && (hooverPosition[0][0] < intGridSizeX - 1)) {
+                //move the hoover east
+                hooverPosition[0][0] = hooverPosition[0][0] + 1;
+                //add the new hoover position to the hoover path array
+                arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
+                return [arrHooverPath, hooverPosition];
+            }
+            if ((direction == 'W') && (hooverPosition[0][0] > 0)) {
+                //move the hoover west
+                hooverPosition[0][0] = hooverPosition[0][0] - 1;
+                //add the new hoover position to the hoover path array
+                arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
+                return [arrHooverPath, hooverPosition];
+            }
+            //if the direction given moves the hoover into a wall no change is made to the hoover position
+            return [arrHooverPath, hooverPosition];
+        }
+
+
+
+        function checkInputSanity(intGridSizeX, intGridSizeY, hooverPosition) {
+            /**
+             * checkInputSanity performs some light sanity checking on the data prior to calculaing the hoover path
+             * @param   {number} intGridSizeX   Size of grid in X dimension
+             * @param   {number} intGridSizeY   Size of grid in Y dimension
+             * @param   {Array} hooverPosition 2d array that holds current hoover position coordinates
+             * @returns {boolean}  true indicates input is good, false indicates bad input from the input file
+             */
+            //check that grid sizes were given in int format
+            if (!parseInt(intGridSizeX, 10) || !parseInt(intGridSizeY, 10)) {
+                diplayOnPage("Grid size must be given in integers");
+                diplayOnPage("*****************************************************************")
+                return false;
+            }
+
+            //check if both grid size dimensions are either 0 or postive numbers
+            if (intGridSizeX < 0 || intGridSizeY < 0) {
+                diplayOnPage("Bad grid size detected. Grid size must be given in postive integers only. ");
+                diplayOnPage(intGridSizeX + "," + intGridSizeY);
+                diplayOnPage("*****************************************************************")
+                return false;
+            }
+
+            //check if hoover starting location coordinates are both 0 or greater
+            if (hooverPosition[0][0] < 0 || hooverPosition[0][1] < 0) {
+                diplayOnPage("Hoover starting position values can not be negative");
+                diplayOnPage("*****************************************************************")
+                return false;
+            }
+
+            //check if hoover starting location is on grid
+            if (hooverPosition[0][0] > intGridSizeX || hooverPosition[0][1] > intGridSizeY) {
+                diplayOnPage("Hoover starting position is off grid" + hooverPosition[0][0] + "," + hooverPosition[0][1]);
+                diplayOnPage("Grid: " + intGridSizeX + "," + intGridSizeY);
+                diplayOnPage("*****************************************************************")
+                return false;
+            }
+
+            return true;
+        }
+
+
+
+        function getHash(array) {
+            /**
+             * getHash creates a property hash of an array
+             * @param   {Array} array the array to be hashed
+             * @returns {hash} property hash of the array that was passed in
+             */
+            var hash = {};
+            for (var i = 0; i < array.length; i++) {
+                hash[array[i]] = true;
+            }
+            return hash;
+        }
+
+
+
+        function countDirtPatchesCleaned(arrDirtPatchCoords, arrHooverPath) {
+            /**
+             * countDirtPatchesCleaned takes the locations of dirt patches
+             * and the hoover path as input.  It sends the hoover path array to 
+             * getHash and once returned it spins through the dirt patch location array values
+             * producing an array with dirt patch locations that were not visited by the hoover
+             * we then subtract the number of locations that were not visited from 
+             * the orginal number of dirt patch locations.  The result is the number of dirt patch locations
+             * that were cleaned by the rover.  This method is fast and it eliminates the need for 
+             * program logic that would account for multiple visits to the same dirt patch location.
+             * @param   {Array}  arrDirtPatchCoords array of dirt patch locations
+             * @param   {Array}  arrHooverPath      2d array that holds coordinates of the hoover path
+             * @returns {number} number of dirt patch locations the hoover cleaned
+             */
+            //hash the hoover path array
+            var hash = getHash(arrHooverPath);
+
+            //declare array to hold the dirt patch locations that are not visited
+            var arrDirtPatchCoordsNotVisited = [];
+            //spin through the 
+            for (var i = 0; i < arrDirtPatchCoords.length; i++) {
+                var value = arrDirtPatchCoords[i];
+                if (!hash[value]) {
+                    arrDirtPatchCoordsNotVisited.push(value);
+                }
+            }
+            //return the number of dirt patches cleaned
+            return (arrDirtPatchCoords.length - arrDirtPatchCoordsNotVisited.length);
+        }
+
+
+        function publishResults(hooverPosition, numDirtPatchesCleaned) {
+            /**
+             * publishResults sends the final output the console log and the html page
+             * @param {Array}    hooverPosition        2d array that holds current hoover position coordinates
+             * @param {number} numDirtPatchesCleaned   number of dirt patch locations cleaned
+             */
+            //We are done.  Display the final output.                
+            diplayOnPage("*****************************************************************")
+
+            //The first requirement was to produce the final coordinates of the hoover (X Y)
+            diplayOnPage(hooverPosition[0][0] + " " + hooverPosition[0][1]);
+            console.log(hooverPosition[0][0] + " " + hooverPosition[0][1]);
+
+            //the second requirement was to produce total patches of dirt our hoover cleaned up
+            diplayOnPage(numDirtPatchesCleaned);
+            console.log(numDirtPatchesCleaned);
+            diplayOnPage("*****************************************************************")
+
+            
+        }
+
+
+        function diplayOnPage(output) {
+            /**
+             * diplayOnPage appends the text that you sent it to the html page output_window <p>
+             * @param {string} output the string you would like written to the html page
+             */
+            var temp_html = document.getElementById("output_window").innerHTML;
+            document.getElementById("output_window").innerHTML = temp_html + "<BR>" + output;
+        }
+
+        
+        function drawSolution(intGridSizeX, intGridSizeY, hooverPosition, arrDirtPatchCoords, arrHooverPath) {
+            
+            //use a little dom to obtain the canvas
+            var canvas = document.getElementById("canvas");
+            var ctx = canvas.getContext("2d");
+            
+            //set the width of the grid tiles to be proportional to the canvas
+            var xTileSize = (canvas.width / intGridSizeX);
+           
+            //set the height of the grid tiles to be proportional to the canvas
+            var yTileSize = (canvas.width / intGridSizeY);
+            
+            //now let's draw our grid
+            for (var y = 0; y < intGridSizeY; y += 1) {
+                for (var x = 0; x < intGridSizeX; x += 1) {
+                    ctx.strokeRect((x * xTileSize), (y * yTileSize), xTileSize, yTileSize);
+                    ctx.strokeStyle = "black";
+                }
+            }
+            
+            
+            //determine hoover size x
+            var xHooverSize = Math.round((xTileSize-(xTileSize/2)));
+            
+            //determine hoover size y
+            var yHooverSize = Math.round((yTileSize-(yTileSize/2)));
+            
+            //plot hoover final position
+            var xHooverCanvasPos = findObjectCanvasXPos(xTileSize, hooverPosition[0][0], xHooverSize);
+            var yHooverCanvasPos = findObjectCanvasYPos(yTileSize, hooverPosition[0][1], yHooverSize);
+            ctx.fillStyle = "blue";
+            ctx.fillRect(xHooverCanvasPos, yHooverCanvasPos, xHooverSize, yHooverSize);
+            
+
+            
+            //plot all dirt patches
+            //determine dirt patch size x
+            var xDirtPatchSize = Math.round((xTileSize-(xTileSize/2)));
+            
+            //determine dirt patch size y
+            var yDirtPatchSize = Math.round((yTileSize-(yTileSize/2)));
+            var xDirtPatchCanvasPos = 0;
+            var yDirtPatchCanvasPos = 0;
+            var strDirtPatchCoords = "";
+            
+            diplayOnPage("Dirt Patch Locations:")
+            for (j = 0;j < arrDirtPatchCoords.length; j++){
+                
+                strDirtPatchCoords = arrDirtPatchCoords[j].toString();
+                
+                //strDirtPatchCoords = strDirtPatchCoords.toString();
+                
+                var intXDirtPatchCoord = parseInt(strDirtPatchCoords.substring(0, strDirtPatchCoords.indexOf(",")));
+                var intYDirtPatchCoord = parseInt(strDirtPatchCoords.substring(strDirtPatchCoords.indexOf(",") + 1));
+                
+                diplayOnPage(intXDirtPatchCoord + "," + intYDirtPatchCoord);
+                
+                //find the position of the dirt patch as it relates to the canvas
+                xDirtPatchCanvasPos = findObjectCanvasXPos(xTileSize, intXDirtPatchCoord, xDirtPatchSize);
+                yDirtPatchCanvasPos = findObjectCanvasYPos(yTileSize, intYDirtPatchCoord, yDirtPatchSize);
+                
+                //draw the dirt patch(es)
+                ctx.fillStyle = "red";
+                ctx.fillRect(xDirtPatchCanvasPos, yDirtPatchCanvasPos, xDirtPatchSize, yDirtPatchSize);   
+            }
+            
+            //draw hoover path
+            var strHooverPathCoords = "";
+            var xHooverPathCanvasPos = 0;
+            var yHooverPathCanvasPos = 0;
+            
+            diplayOnPage("Hoover coordinate path:")
+             
+            ctx.beginPath();
+            ctx.strokeStyle = 'blue';
+            
+            //find the center of the first grid tile
+            //alert(arrHooverPath[0]);
+            
+            strHooverPathCoords = arrHooverPath[0].toString();
+            var intXHooverPathCoord = parseInt(strHooverPathCoords.substring(0, strHooverPathCoords.indexOf(",")));
+            var intYHooverPathCoord = parseInt(strHooverPathCoords.substring(strHooverPathCoords.indexOf(",") + 1));
+            
+            xHooverPathCanvasPos = findObjectCanvasXPos(xTileSize, intXHooverPathCoord, xHooverSize);
+            yHooverPathCanvasPos = findObjectCanvasYPos(yTileSize, intYHooverPathCoord, yHooverSize);
+            
+            //ctx.moveTo(xHooverCanvasPos, yHooverCanvasPos);
+            
+            for (k = 0;k < arrHooverPath.length; k++){
+                diplayOnPage(arrHooverPath[k]);
+                strHooverPathCoords = arrDirtPatchCoords[k].toString();
+                
+                ctx.lineTo(200,20);
+                ctx.stroke();
+            }
+            ctx.lineTo(500,200);
+        }
+         
+        function findObjectCanvasXPos(xTileSize, xObjectGridCoord, xObjectSize){
+            var xGridPos = (xObjectGridCoord * xTileSize);
+            xGridPos = (xGridPos - (xObjectSize/2))+(xTileSize/2);
+            xGridPos = Math.round(xGridPos);
+            return xGridPos;
+        }
+        
+    
+        function findObjectCanvasYPos(yTileSize, yObjectGridCoord, yObjectSize){
+            //determine the center of the hoover y position on the grid
+            var yGridPos = (yObjectGridCoord * yTileSize);
+            //800 is y 0
+            yGridPos = 800-(yGridPos - (yObjectSize/2)+(yTileSize));
+            yGridPos = Math.round(yGridPos);
+            return yGridPos;
+        }
+        
+        
+    </script>
+</head>
+
+<body style="background: orange;">
+    <canvas id="canvas" width="800px" height="800px" style="background: #fff; magrin:20px;"></canvas>
+    <p>Note: The bottom left tile in the above grid is 0,0</p>
+    <p>Please choose the desired input file</p>
+    <input type="file" id="inputFile">
+    <p id="output_window"></p>
+</body>
+
+</html>
