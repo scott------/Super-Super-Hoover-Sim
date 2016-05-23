@@ -4,7 +4,7 @@
     <script type="text/javascript">
         /** Program written by: Scott------
          * ******************************************************************
-         * Last Updated: 5/19/2016
+         * Last Updated: 5/21/2016
          * Title: Hoover Simulation in raw JavaScript
          * calling order of essential functions:
          *                                    hooverInit
@@ -101,11 +101,11 @@
 
             //set the initial hoover position [x,y] to 0,0
             var hooverPosition = [
-                [0, 0]
+                [0,0]
             ];
 
             //this holds the array of path and position objects returned from each call to moveHoover
-            var hooverPathAndPosition = [];
+            //var hooverPathAndPosition = [];
 
             //storage for the coordinate locations of patches of dirt
             var arrDirtPatchCoords = [];
@@ -116,14 +116,14 @@
             //we will use an array to store the path of the hoover
             //we will compare this array against the coordinate locations
             //of the patches of dirt to determine the intersects
-            var arrHooverPath = [];
-
+            var arrHooverPath = [[0,0]];
+ 
             //set the grid size   
             intGridSizeX = parseInt(arrInputFileLines[0].substring(0, arrInputFileLines[0].indexOf(" ")));
             intGridSizeY = parseInt(arrInputFileLines[0].substring(arrInputFileLines[0].indexOf(" ") + 1));
 
             //set the intial hoover position
-            //extract the numbers on the second line of the input file.
+            //extract the numbers on the second line of the input file
             //this program takes any two ints seperated by 
             //a space as is described in the specification document
             //you may want to use more than just single digits for very large grids :-)
@@ -131,6 +131,7 @@
             hooverPosition[0][1] = parseInt(arrInputFileLines[1].substring(arrInputFileLines[1].indexOf(" ") + 1));
 
             //add current position of hoover to hoover path array
+            arrHooverPath.pop();
             arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
             
             //get dirt patch locations
@@ -156,19 +157,23 @@
             drivingInstructions = drivingInstructions.split("");
 
             //check some basic aspects of the input
-            var inputSanity = checkInputSanity(intGridSizeX, intGridSizeY, hooverPosition);
-
+            var inputSanity = checkInputSanity(intGridSizeX, intGridSizeY, hooverPosition);           
+            
             //if the input is sane perform the simulation
             if (inputSanity == true) {
-
                 //move the hoover through the array of driving instructions
                 for (x = 0; x < drivingInstructions.length; x++) {
-                    hooverPathAndPosition = moveHoover(drivingInstructions[x], intGridSizeX, intGridSizeY, arrHooverPath, hooverPosition);
-                    arrHooverPath = hooverPathAndPosition[0];
-                    hooverPosition = hooverPathAndPosition[1];
+                    var hooverPathAndPosition = [];
+                    hooverPathAndPosition = moveHoover(drivingInstructions[x], intGridSizeX, intGridSizeY, hooverPosition);
+                    
+                    //if hoover was actually moved update the hoover position and add to the hoover path
+                    if (hooverPathAndPosition[0] == true){
+                        arrHooverPath.push(hooverPathAndPosition[1].toString());                
+                        hooverPosition = hooverPathAndPosition[1];
+                    }
                 }
-                
-                
+                 
+                drawSolution(intGridSizeX, intGridSizeY, hooverPosition, arrDirtPatchCoords, arrHooverPath);
                 
                 //count the number of patches of dirt the robot cleaned up
                 var numDirtPatchesCleaned = countDirtPatchesCleaned(arrDirtPatchCoords, arrHooverPath);
@@ -176,14 +181,13 @@
                 //publish the results to the screen and the console.log
                 publishResults(hooverPosition, numDirtPatchesCleaned);
                 
-                drawSolution(intGridSizeX, intGridSizeY, hooverPosition, arrDirtPatchCoords, arrHooverPath);
                 
             }
         }
 
 
 
-        function moveHoover(direction, intGridSizeX, intGridSizeY, arrHooverPath, hooverPosition) {
+        function moveHoover(direction, intGridSizeX, intGridSizeY, hooverPosition) {
             /**
              * mooveHoover "moves" the hoover around the grid
              * before moving we check to see fi you are at the wall for that direction already
@@ -196,39 +200,40 @@
              * @param   {Array}  hooverPosition 2d array that holds current hoover position coordinates
              * @returns {Array}  Contains the arrHoverPath and the hooverPosition
              */
-
+            //var updatedHooverPos = false;
+            //var newHooverPos = [[0,0]];
             //if you have a valid direction and you are not at the "wall"
             //then move by changing the appropriate coordinate value of the hoover
             if ((direction == 'N') && (hooverPosition[0][1] < intGridSizeY - 1)) {
                 //move the hoover north
                 hooverPosition[0][1] = hooverPosition[0][1] + 1;
                 //add the new hoover position to the hoover path array
-                arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
-                return [arrHooverPath, hooverPosition];
+                //arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
+                return [true, hooverPosition];
             }
             if ((direction == 'S') && (hooverPosition[0][1] > 0)) {
                 //move the hoover south
                 hooverPosition[0][1] = hooverPosition[0][1] - 1;
                 //add the new hoover position to the hoover path array
-                arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
-                return [arrHooverPath, hooverPosition];
+                //arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
+                return [true, hooverPosition];
             }
             if ((direction == 'E') && (hooverPosition[0][0] < intGridSizeX - 1)) {
                 //move the hoover east
                 hooverPosition[0][0] = hooverPosition[0][0] + 1;
                 //add the new hoover position to the hoover path array
-                arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
-                return [arrHooverPath, hooverPosition];
+                //arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
+                return [true, hooverPosition];
             }
             if ((direction == 'W') && (hooverPosition[0][0] > 0)) {
                 //move the hoover west
                 hooverPosition[0][0] = hooverPosition[0][0] - 1;
                 //add the new hoover position to the hoover path array
-                arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
-                return [arrHooverPath, hooverPosition];
+                //arrHooverPath.push([hooverPosition[0][0], hooverPosition[0][1]]);
+                return [true, hooverPosition];
             }
             //if the direction given moves the hoover into a wall no change is made to the hoover position
-            return [arrHooverPath, hooverPosition];
+            return [false, hooverPosition];
         }
 
 
@@ -243,31 +248,31 @@
              */
             //check that grid sizes were given in int format
             if (!parseInt(intGridSizeX, 10) || !parseInt(intGridSizeY, 10)) {
-                diplayOnPage("Grid size must be given in integers");
-                diplayOnPage("*****************************************************************")
+                displayOnPage("Grid size must be given in integers");
+                displayOnPage("*****************************************************************")
                 return false;
             }
 
             //check if both grid size dimensions are either 0 or postive numbers
             if (intGridSizeX < 0 || intGridSizeY < 0) {
-                diplayOnPage("Bad grid size detected. Grid size must be given in postive integers only. ");
-                diplayOnPage(intGridSizeX + "," + intGridSizeY);
-                diplayOnPage("*****************************************************************")
+                displayOnPage("Bad grid size detected. Grid size must be given in postive integers only. ");
+                displayOnPage(intGridSizeX + "," + intGridSizeY);
+                displayOnPage("*****************************************************************")
                 return false;
             }
 
             //check if hoover starting location coordinates are both 0 or greater
             if (hooverPosition[0][0] < 0 || hooverPosition[0][1] < 0) {
-                diplayOnPage("Hoover starting position values can not be negative");
-                diplayOnPage("*****************************************************************")
+                displayOnPage("Hoover starting position values can not be negative");
+                displayOnPage("*****************************************************************")
                 return false;
             }
 
             //check if hoover starting location is on grid
             if (hooverPosition[0][0] > intGridSizeX || hooverPosition[0][1] > intGridSizeY) {
-                diplayOnPage("Hoover starting position is off grid" + hooverPosition[0][0] + "," + hooverPosition[0][1]);
-                diplayOnPage("Grid: " + intGridSizeX + "," + intGridSizeY);
-                diplayOnPage("*****************************************************************")
+                displayOnPage("Hoover starting position is off grid" + hooverPosition[0][0] + "," + hooverPosition[0][1]);
+                displayOnPage("Grid: " + intGridSizeX + "," + intGridSizeY);
+                displayOnPage("*****************************************************************")
                 return false;
             }
 
@@ -329,24 +334,24 @@
              * @param {number} numDirtPatchesCleaned   number of dirt patch locations cleaned
              */
             //We are done.  Display the final output.                
-            diplayOnPage("*****************************************************************")
+            displayOnPage("*****************************************************************")
 
             //The first requirement was to produce the final coordinates of the hoover (X Y)
-            diplayOnPage(hooverPosition[0][0] + " " + hooverPosition[0][1]);
+            displayOnPage(hooverPosition[0][0] + " " + hooverPosition[0][1]);
             console.log(hooverPosition[0][0] + " " + hooverPosition[0][1]);
 
             //the second requirement was to produce total patches of dirt our hoover cleaned up
-            diplayOnPage(numDirtPatchesCleaned);
+            displayOnPage(numDirtPatchesCleaned);
             console.log(numDirtPatchesCleaned);
-            diplayOnPage("*****************************************************************")
+            displayOnPage("*****************************************************************")
 
             
         }
 
 
-        function diplayOnPage(output) {
+        function displayOnPage(output) {
             /**
-             * diplayOnPage appends the text that you sent it to the html page output_window <p>
+             * displayOnPage appends the text that you send it to the html page output_window <p>
              * @param {string} output the string you would like written to the html page
              */
             var temp_html = document.getElementById("output_window").innerHTML;
@@ -384,9 +389,10 @@
             //plot hoover final position
             var xHooverCanvasPos = findObjectCanvasXPos(xTileSize, hooverPosition[0][0], xHooverSize);
             var yHooverCanvasPos = findObjectCanvasYPos(yTileSize, hooverPosition[0][1], yHooverSize);
-            ctx.fillStyle = "blue";
-            ctx.fillRect(xHooverCanvasPos, yHooverCanvasPos, xHooverSize, yHooverSize);
             
+            ctx.arc(xHooverCanvasPos + (xTileSize/4), yHooverCanvasPos + (yTileSize/4),10,0,2*Math.PI);
+            ctx.fillStyle = "purple";
+            ctx.fill();
 
             
             //plot all dirt patches
@@ -399,17 +405,15 @@
             var yDirtPatchCanvasPos = 0;
             var strDirtPatchCoords = "";
             
-            diplayOnPage("Dirt Patch Locations:")
+            displayOnPage("Dirt Patch Locations:")
             for (j = 0;j < arrDirtPatchCoords.length; j++){
                 
                 strDirtPatchCoords = arrDirtPatchCoords[j].toString();
-                
-                //strDirtPatchCoords = strDirtPatchCoords.toString();
-                
+                                
                 var intXDirtPatchCoord = parseInt(strDirtPatchCoords.substring(0, strDirtPatchCoords.indexOf(",")));
                 var intYDirtPatchCoord = parseInt(strDirtPatchCoords.substring(strDirtPatchCoords.indexOf(",") + 1));
                 
-                diplayOnPage(intXDirtPatchCoord + "," + intYDirtPatchCoord);
+                displayOnPage(intXDirtPatchCoord + "," + intYDirtPatchCoord);
                 
                 //find the position of the dirt patch as it relates to the canvas
                 xDirtPatchCanvasPos = findObjectCanvasXPos(xTileSize, intXDirtPatchCoord, xDirtPatchSize);
@@ -425,39 +429,52 @@
             var xHooverPathCanvasPos = 0;
             var yHooverPathCanvasPos = 0;
             
-            diplayOnPage("Hoover coordinate path:")
-             
-            ctx.beginPath();
-            ctx.strokeStyle = 'blue';
+            displayOnPage("Hoover coordinate path:")
             
-            //find the center of the first grid tile
-            //alert(arrHooverPath[0]);
+            ctx.beginPath();
+            ctx.strokeStyle = 'green';          
             
             strHooverPathCoords = arrHooverPath[0].toString();
+            
             var intXHooverPathCoord = parseInt(strHooverPathCoords.substring(0, strHooverPathCoords.indexOf(",")));
             var intYHooverPathCoord = parseInt(strHooverPathCoords.substring(strHooverPathCoords.indexOf(",") + 1));
             
             xHooverPathCanvasPos = findObjectCanvasXPos(xTileSize, intXHooverPathCoord, xHooverSize);
             yHooverPathCanvasPos = findObjectCanvasYPos(yTileSize, intYHooverPathCoord, yHooverSize);
             
-            //ctx.moveTo(xHooverCanvasPos, yHooverCanvasPos);
+            //draw the hoover starting position
+            ctx.moveTo(xHooverPathCanvasPos + (xTileSize/4), yHooverPathCanvasPos + (yTileSize/4));
+            ctx.arc(xHooverPathCanvasPos + (xTileSize/4), yHooverPathCanvasPos + (yTileSize/4),10,0,2*Math.PI);
+            ctx.fillStyle = "blue";
+            ctx.fill();
+
             
             for (k = 0;k < arrHooverPath.length; k++){
-                diplayOnPage(arrHooverPath[k]);
-                strHooverPathCoords = arrDirtPatchCoords[k].toString();
+                displayOnPage(arrHooverPath[k]);
+                strHooverPathCoords = arrHooverPath[k].toString();
                 
-                ctx.lineTo(200,20);
+                intXHooverPathCoord = parseInt(strHooverPathCoords.substring(0, strHooverPathCoords.indexOf(",")));
+                intYHooverPathCoord = parseInt(strHooverPathCoords.substring(strHooverPathCoords.indexOf(",") + 1));
+                
+                xHooverPathCanvasPos = findObjectCanvasXPos(xTileSize, intXHooverPathCoord, xHooverSize);                
+                yHooverPathCanvasPos = findObjectCanvasYPos(yTileSize, intYHooverPathCoord, yHooverSize); 
+                
+                ctx.lineTo(xHooverPathCanvasPos + (xTileSize/4),yHooverPathCanvasPos + (yTileSize/4));
                 ctx.stroke();
             }
-            ctx.lineTo(500,200);
+
         }
          
+        
+        
         function findObjectCanvasXPos(xTileSize, xObjectGridCoord, xObjectSize){
-            var xGridPos = (xObjectGridCoord * xTileSize);
+            var xGridPos = 0;
+            xGridPos = (xObjectGridCoord * xTileSize);
             xGridPos = (xGridPos - (xObjectSize/2))+(xTileSize/2);
             xGridPos = Math.round(xGridPos);
             return xGridPos;
         }
+        
         
     
         function findObjectCanvasYPos(yTileSize, yObjectGridCoord, yObjectSize){
@@ -475,7 +492,8 @@
 
 <body style="background: orange;">
     <canvas id="canvas" width="800px" height="800px" style="background: #fff; magrin:20px;"></canvas>
-    <p>Note: The bottom left tile in the above grid is 0,0</p>
+    <p>Note: The bottom left tile in the above grid is 0,0.  The red shapes denote the dirt patch locations.</p>
+    <p>The green line is the hoover path.  The blue dot is the starting location of the hoover and the purple dot is the hoover's ending location.</p>
     <p>Please choose the desired input file</p>
     <input type="file" id="inputFile">
     <p id="output_window"></p>
